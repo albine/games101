@@ -171,6 +171,7 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
             };
 
             // msaa
+            int res[4] = {0, 0, 0, 0};
             for (size_t sample = 0; sample < 4; sample++)
             {
                 int x1 = (sample % 2) * 2 + 1;
@@ -179,7 +180,6 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
                 // std::cout << "sample: " << sample << "\n";
                 // std::cout << "z_interpolated: " << i + x1 * 0.25 << ", " << j + y1 * 0.25 << "\n";
 
-                int res[4] = {0, 0, 0, 0};
                 if (insideTriangle(pixelCenter.x(), pixelCenter.y(), tri))
                 {
                     float alpha, beta, gamma;
@@ -196,15 +196,15 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
                         msaa_buf[get_index(i, j)][sample] = z_interpolated;
                     }
                 }
-                int sum = 0;
-                for (size_t i = 0; i < 4; i++)
-                {
-                    sum += res[i];
-                }
-                float avg = sum / 4.0;
-                // std::cout << "avg: " << avg << "\n";
-                set_pixel(Eigen::Vector3f(i, j, 0), t.getColor());
             }
+            int sum = 0;
+            for (size_t i = 0; i < 4; i++)
+            {
+                sum += res[i];
+            }
+            float avg = sum / 4.0;
+            // std::cout << "avg: " << avg << "\n";
+            set_pixel(Eigen::Vector3f(i, j, 0), avg * t.getColor());
         }
     }
 }
