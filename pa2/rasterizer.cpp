@@ -9,6 +9,7 @@
 #include <opencv2/opencv.hpp>
 #include <math.h>
 #include <float.h> 
+#include <numeric>
 
 
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
@@ -168,22 +169,38 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
             Eigen::Vector3f tri[] = {
                 v[0].head<3>(), v[1].head<3>(), v[2].head<3>()
             };
-            Eigen::Vector3f pixelCenter(i + 0.5, j + 0.5, 0);
-            if (insideTriangle(pixelCenter.x(), pixelCenter.y(), tri))
-            {
-                float alpha, beta, gamma;
-                std::tie(alpha, beta, gamma) = computeBarycentric2D(pixelCenter.x(), pixelCenter.y(), t.v);
-                float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-                z_interpolated *= w_reciprocal;
 
-                float zBuf = depth_buf[get_index(i, j)];
-                if (z_interpolated < zBuf)
+            // msaa
+            for (size_t sample = 0; sample < 4; sample++)
+            {
+                int x1 = (sample % 2) * 2 + 1;
+                int y1 = sample / 2 * 2 + 1;
+                Eigen::Vector3f pixelCenter(i + x1 * 0.25, j + y1 * 0.25, 0);
+
+                int res[4] = {0, 0, 0, 0};
+                if (insideTriangle(pixelCenter.x(), pixelCenter.y(), tri))
                 {
-                    // std::cout << "z_interpolated: " << v[0].z() << "\n";
-                    depth_buf[get_index(i, j)] = z_interpolated;
-                    set_pixel(Eigen::Vector3f(i, j, z_interpolated), t.getColor());
+                    float alpha, beta, gamma;
+                    std::tie(alpha, beta, gamma) = computeBarycentric2D(pixelCenter.x(), pixelCenter.y(), t.v);
+                    float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    z_interpolated *= w_reciprocal;
+
+                    float zBuf = msaa_buf[get_index(i, j)][sample];
+                    if (z_interpolated < zBuf)
+                    {
+                        res[sample] = 1;
+                        // std::cout << "z_interpolated: " << v[0].z() << "\n";
+                        msaa_buf[get_index(i, j)][sample] = z_interpolated;
+                    }
                 }
+                int sum = 0;
+                for (size_t i = 0; i < 4; i++)
+                {
+                    sum += res[i];
+                }
+                float avg = sum / 4;
+                set_pixel(Eigen::Vector3f(i, j, 0), avg * t.getColor());
             }
         }
     }
@@ -213,6 +230,11 @@ void rst::rasterizer::clear(rst::Buffers buff)
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
         std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+        std::array<float, 4> tmp{std::numeric_limits<float>::infinity(),
+         std::numeric_limits<float>::infinity(), 
+         std::numeric_limits<float>::infinity(), 
+         std::numeric_limits<float>::infinity()};
+        std::fill(msaa_buf.begin(), msaa_buf.end(), tmp);
     }
 }
 
@@ -220,6 +242,7 @@ rst::rasterizer::rasterizer(int w, int h) : width(w), height(h)
 {
     frame_buf.resize(w * h);
     depth_buf.resize(w * h);
+    msaa_buf.resize(w * h);
 }
 
 int rst::rasterizer::get_index(int x, int y)
