@@ -42,7 +42,7 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 }
 
 
-static bool insideTriangle(int x, int y, const Vector3f* _v)
+static bool insideTriangle(float x, float y, const Vector3f* _v)
 {   
     // check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
     Eigen::Vector3f q;
@@ -50,11 +50,16 @@ static bool insideTriangle(int x, int y, const Vector3f* _v)
     float z[3];
     for (size_t i = 0; i < 3; i++)
     {
-        q << x - _v[i].x(), y - _v[i].y(), 0;
-        p << _v[(i+1) % 3].x() - _v[i].x(), _v[(i+1) % 3].y() - _v[i].y(), 0;
+        q << x - _v[i].x(), y - _v[i].y(), 0.0;
+        // std::cout << "qx: " << x << ", " << _v[i].x() << ", " << x - _v[i].x() << "\n";
+        p << _v[(i+1) % 3].x() - _v[i].x(), _v[(i+1) % 3].y() - _v[i].y(), 0.0;
+        // std::cout << "p: " << p << "\n";
         z[i] = q.cross(p).z();
+        // std::cout << "q * p: " << q.cross(p) << "\n";
     }
-    if ((z[0] < 0 && z[1] < 0 && z[2] < 0) || (z[0] > 0 && z[1] > 0 && z[2] > 0))
+    // std::cout << "z Test: " << z[0] << "," << z[1] << "," << z[2] << "\n";
+    
+    if (z[0] < 0 && z[1] < 0 && z[2] < 0)
     {
         return true;
     }
@@ -149,9 +154,11 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
 
     // 左下角
     int left = std::floor(xmin);
-    int right = std::floor(xmax);
+    int right = std::ceil(xmax);
     int btm = std::floor(ymin);
-    int top = std::floor(ymax);
+    int top = std::ceil(ymax);
+
+    // std::cout << "AABB: " << left << right << "," << btm << top << "\n";
 
     // iterate through the pixel and find if the current pixel is inside the triangle
 
@@ -176,12 +183,13 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
             {
                 int x1 = (sample % 2) * 2 + 1;
                 int y1 = sample / 2 * 2 + 1;
-                Eigen::Vector3f pixelCenter(i + x1 * 0.25, j + y1 * 0.25, 0);
+                Eigen::Vector3f pixelCenter(i + x1 * 0.25, j + y1 * 0.25, 0.0);
                 // std::cout << "sample: " << sample << "\n";
-                // std::cout << "z_interpolated: " << i + x1 * 0.25 << ", " << j + y1 * 0.25 << "\n";
+                // std::cout << "point position: " << i + x1 * 0.25 << ", " << j + y1 * 0.25 << "\n";
 
                 if (insideTriangle(pixelCenter.x(), pixelCenter.y(), tri))
                 {
+                    // std::cout << "inside sample: " << sample << "\n";
                     float alpha, beta, gamma;
                     std::tie(alpha, beta, gamma) = computeBarycentric2D(pixelCenter.x(), pixelCenter.y(), t.v);
                     float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
@@ -202,9 +210,41 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
             {
                 sum += res[i];
             }
-            float avg = sum / 4.0;
-            // std::cout << "avg: " << avg << "\n";
-            set_pixel(Eigen::Vector3f(i, j, 0), avg * t.getColor());
+            if (sum != 0)
+            {
+                Eigen::Vector3f clr(0.0, 0.0, 0.0);
+                Eigen::Vector3f c = frame_buf[get_index(i, j)];
+                clr = clr + c;
+                for (size_t k = 0; k < 4; k++)
+                {
+                    if (res[k] == 0)
+                    {
+                        clr = clr + c;
+                    }
+                    else
+                    {
+                        clr = clr + t.getColor();
+                    }
+                }
+                clr = clr / 5.0f;
+                set_pixel(Eigen::Vector3f(i, j, 0), clr);
+            }
+            
+            // float avg = sum / 4.0;
+
+            // Eigen::Vector3f clr(0.0, 0.0, 0.0);
+            // Eigen::Vector3f c = frame_buf[get_index(i, j)];
+            // for (size_t k = 0; k < 4; i++)
+            // {
+            //     if (res[k] == 0)
+            //     {
+            //         clr = clr + c;
+            //     }
+            //     else
+            //     {
+            //         clr = clr + t.getColor();
+            //     }
+            // }
         }
     }
 }
