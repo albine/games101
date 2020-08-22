@@ -1,3 +1,0 @@
-/root/graphics/pa1/build/CMakeFiles/rebuild_cache.dir
-/root/graphics/pa1/build/CMakeFiles/edit_cache.dir
-/root/graphics/pa1/build/CMakeFiles/Rasterizer.dir
