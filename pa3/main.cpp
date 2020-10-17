@@ -112,7 +112,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 
     std::vector<light> lights = {l1, l2};
     Eigen::Vector3f amb_light_intensity{10, 10, 10};
-    Eigen::Vector3f eye_pos{0, 0, 10};
+    Eigen::Vector3f eye_pos{0, 0, 20};
 
     float p = 150;
 
@@ -188,7 +188,7 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
 
     std::vector<light> lights = {l1, l2};
     Eigen::Vector3f amb_light_intensity{5, 5, 5};
-    Eigen::Vector3f eye_pos{0, 0, 10};
+    Eigen::Vector3f eye_pos{0, 0, 20};
 
     float p = 150;
 
@@ -313,10 +313,10 @@ int main(int argc, const char** argv)
 
     std::string filename = "output.png";
     objl::Loader Loader;
-    std::string obj_path = "../models/spot/";
+    std::string obj_path = "../models/rock/";
 
     // Load .obj File
-    bool loadout = Loader.LoadFile("../models/spot/spot_triangulated_good.obj");
+    bool loadout = Loader.LoadFile("../models/rock/rock.obj");
     // bool loadout = Loader.LoadFile("../models/crate/crate1.obj");
     for(auto mesh:Loader.LoadedMeshes)
     {
@@ -335,7 +335,7 @@ int main(int argc, const char** argv)
 
     rst::rasterizer r(700, 700);
 
-    auto texture_path = "hmap.jpg";
+    auto texture_path = "rock.png";
     r.set_texture(Texture(obj_path + texture_path));
 
     std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
@@ -349,7 +349,7 @@ int main(int argc, const char** argv)
         {
             std::cout << "Rasterizing using the texture shader\n";
             active_shader = texture_fragment_shader;
-            texture_path = "spot_texture.png";
+            // texture_path = "spot_texture.png";
             r.set_texture(Texture(obj_path + texture_path));
         }
         else if (argc == 3 && std::string(argv[2]) == "normal")
@@ -374,7 +374,7 @@ int main(int argc, const char** argv)
         }
     }
 
-    Eigen::Vector3f eye_pos = {0,0,10};
+    Eigen::Vector3f eye_pos = {0,0,20};
 
     r.set_vertex_shader(vertex_shader);
     r.set_fragment_shader(active_shader);
